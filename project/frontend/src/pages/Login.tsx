@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
 import {
   Container,
   Paper,
@@ -10,20 +10,24 @@ import {
   Link,
   Box,
   Alert,
-} from '@mui/material';
-import { authAPI } from '../services/api';
-import { setCredentials } from '../redux/slices/authSlice';
+} from "@mui/material";
+import { authAPI } from "../services/api";
+import { setCredentials } from "../redux/slices/authSlice";
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Get the redirect path from URL or default to home
+  const redirectPath = new URLSearchParams(location.search).get("redirect") || "/";
+
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState(location.state?.message || "");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -37,10 +41,12 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       dispatch(setCredentials(response.data));
-      setSuccessMessage('Logged in successfully!');
-      setTimeout(() => navigate('/'), 1000);
+      setSuccessMessage("Logged in successfully!");
+      
+      // Redirect user to their last visited page
+      setTimeout(() => navigate(redirectPath), 1000);
     } catch (err) {
-      setError('Invalid email or password');
+      setError("Invalid email or password");
     }
   };
 
@@ -72,6 +78,7 @@ const Login = () => {
             required
             autoComplete="email"
             sx={{ mb: 2 }}
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             fullWidth
@@ -84,20 +91,15 @@ const Login = () => {
             required
             autoComplete="current-password"
             sx={{ mb: 3 }}
+            InputLabelProps={{ shrink: true }}
           />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            size="large"
-          >
+          <Button type="submit" fullWidth variant="contained" color="primary" size="large">
             Login
           </Button>
         </Box>
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Box sx={{ mt: 2, textAlign: "center" }}>
           <Typography variant="body2">
-            Don't have an account?{' '}
+            Don't have an account?{" "}
             <Link component={RouterLink} to="/register">
               Register
             </Link>
@@ -108,4 +110,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

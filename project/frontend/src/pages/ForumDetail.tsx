@@ -29,6 +29,7 @@ const ForumDetail = () => {
   const [success, setSuccess] = useState('');
   const [commentContent, setCommentContent] = useState('');
   const [editingComment, setEditingComment] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState<string>('');
 
   useEffect(() => {
     const fetchForum = async () => {
@@ -48,37 +49,54 @@ const ForumDetail = () => {
     }
   }, [id, dispatch]);
 
-  const handleLike = async (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleLike = async (event: React.MouseEvent) => {
+    event.preventDefault(); // Prevents navigation in case of accidental `<a>` behavior
+  
     if (!user) {
       navigate('/login');
       return;
     }
-    try {
-      const response = await forumAPI.like(parseInt(id!));
-      dispatch(updateForum(response.data));
+  
+    try {  
+      // Toggle like status and update likes count correctly
+      dispatch(updateForum({
+        ...currentForum!,
+        liked: !currentForum!.liked, 
+        likes: currentForum!.liked ? currentForum!.likes - 1 : currentForum!.likes + 1
+      }));
+  
       setSuccess('Like updated successfully!');
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error toggling like:', err);
     }
   };
+  
 
   const handleCommentLike = async (commentId: number) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+  
     try {
-      const response = await commentAPI.like(commentId);
+      // Optimistically update the comment's like count in UI
       dispatch(setCurrentForum({
         ...currentForum!,
         comments: currentForum!.comments.map(comment =>
-          comment.id === commentId ? response.data : comment
+          comment.id === commentId
+            ? { ...comment, liked: !comment.liked, likes: comment.liked ? comment.likes - 1 : comment.likes + 1 }
+            : comment
         ),
       }));
+  
       setSuccess('Comment like updated successfully!');
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error toggling comment like:', err);
     }
   };
+  
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,21 +116,23 @@ const ForumDetail = () => {
 
   const handleCommentUpdate = async (commentId: number) => {
     try {
-      const response = await commentAPI.update(commentId, { content: commentContent });
+      const response = await commentAPI.update(commentId, { content: editContent });
+  
       dispatch(setCurrentForum({
         ...currentForum!,
         comments: currentForum!.comments.map(comment =>
           comment.id === commentId ? response.data : comment
         ),
       }));
-      setCommentContent('');
+
       setEditingComment(null);
+      setEditContent(''); // Clear edit content
       setSuccess('Comment updated successfully!');
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error updating comment:', err);
     }
-  };
+  };  
 
   const handleCommentDelete = async (commentId: number) => {
     try {
@@ -179,10 +199,15 @@ const ForumDetail = () => {
             startIcon={<ThumbUp />}
             color={currentForum.liked ? 'primary' : 'inherit'}
             onClick={handleLike}
+            type="button"
+            variant="text"
           >
             {currentForum.likes}
           </Button>
-          <Button startIcon={<Comment />}>
+          <Button 
+            startIcon={<Comment />}
+            type="button"
+          >
             {currentForum.comments.length} Comments
           </Button>
           {user && user.id === currentForum.user.id && (
@@ -190,6 +215,7 @@ const ForumDetail = () => {
               <Button
                 startIcon={<Edit />}
                 onClick={() => navigate(`/forum/${id}/edit`)}
+                type="button"
               >
                 Edit
               </Button>
@@ -202,6 +228,7 @@ const ForumDetail = () => {
                     navigate('/');
                   }
                 }}
+                type="button"
               >
                 Delete
               </Button>
@@ -252,8 +279,8 @@ const ForumDetail = () => {
                   fullWidth
                   multiline
                   rows={2}
-                  value={commentContent}
-                  onChange={(e) => setCommentContent(e.target.value)}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
                   sx={{ mb: 1 }}
                 />
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -267,7 +294,7 @@ const ForumDetail = () => {
                     size="small"
                     onClick={() => {
                       setEditingComment(null);
-                      setCommentContent('');
+                      setEditContent('');
                     }}
                   >
                     Cancel
@@ -285,6 +312,8 @@ const ForumDetail = () => {
                     size="small"
                     color={comment.liked ? 'primary' : 'inherit'}
                     onClick={() => handleCommentLike(comment.id)}
+                    type="button"
+                    variant="text"
                   >
                     {comment.likes}
                   </Button>
@@ -294,7 +323,7 @@ const ForumDetail = () => {
                         size="small"
                         onClick={() => {
                           setEditingComment(comment.id);
-                          setCommentContent(comment.content);
+                          setEditContent(comment.content);
                         }}
                       >
                         Edit

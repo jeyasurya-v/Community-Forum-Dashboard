@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { RootState } from './redux/store';
-import { restoreSession } from './redux/slices/authSlice';
+import { restoreSession, logout } from './redux/slices/authSlice';
 import { authAPI } from './services/api';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -28,30 +28,52 @@ const theme = createTheme({
 });
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useSelector((state: RootState) => state.auth);
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const location = useLocation();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 const App: React.FC = () => {
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  console.log("User Authenticated:", isAuthenticated);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const restoreUserSession = async () => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       if (token) {
         try {
           const response = await authAPI.getCurrentUser();
           dispatch(restoreSession({ user: response.data, token }));
+  
+          // Restore last visited page (if exists)
+          const lastVisitedPage = localStorage.getItem("lastVisitedPage");
+          if (lastVisitedPage) {
+            window.history.replaceState(null, "", lastVisitedPage);
+            localStorage.removeItem("lastVisitedPage"); // Clear after restoring
+          }
         } catch (error) {
-          console.error('Error restoring session:', error);
-          localStorage.removeItem('token');
+          console.error("Error restoring session:", error);
+          localStorage.removeItem("token"); // Clear invalid token
+          dispatch(logout());
         }
       }
+      setIsLoading(false);
     };
-
+  
     restoreUserSession();
   }, [dispatch]);
+  
+
+  if (isLoading) {
+    return null; // or a loading spinner
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -59,12 +81,18 @@ const App: React.FC = () => {
       <Router>
         <Navbar />
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
-          <Route path="/forum/:id" element={<ForumDetail />} />
+          <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
+          <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
           <Route
-            path="/forum/create"
+            path="/"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/create-forum"
             element={
               <PrivateRoute>
                 <CreateForum />
@@ -76,6 +104,14 @@ const App: React.FC = () => {
             element={
               <PrivateRoute>
                 <EditForum />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/forum/:id"
+            element={
+              <PrivateRoute>
+                <ForumDetail />
               </PrivateRoute>
             }
           />
