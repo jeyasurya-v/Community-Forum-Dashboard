@@ -1,3 +1,17 @@
+/**
+ * ForumDetail Component
+ * 
+ * This component displays a detailed view of a forum post, including:
+ * - Forum title, description, and tags
+ * - Author information
+ * - Like functionality
+ * - Comments section with CRUD operations
+ * - Edit and delete options for forum owner
+ * 
+ * The component implements optimistic updates for likes and comments to provide
+ * a better user experience by updating the UI immediately before the server response.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,7 +32,35 @@ import { RootState } from '../redux/store';
 import { forumAPI, commentAPI } from '../services/api';
 import { setCurrentForum, updateForum } from '../redux/slices/forumSlice';
 
-const ForumDetail = () => {
+// Component interfaces
+interface Comment {
+  id: number;
+  content: string;
+  user: {
+    id: number;
+    username: string;
+  };
+  likes: number;
+  liked: boolean;
+  createdAt: string;
+}
+
+interface Forum {
+  id: number;
+  title: string;
+  description: string;
+  tags: string[];
+  user: {
+    id: number;
+    username: string;
+  };
+  likes: number;
+  liked: boolean;
+  comments: Comment[];
+}
+
+const ForumDetail: React.FC = () => {
+  // Hooks and state
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -31,6 +73,10 @@ const ForumDetail = () => {
   const [editingComment, setEditingComment] = useState<number | null>(null);
   const [editContent, setEditContent] = useState<string>('');
 
+  /**
+   * Fetches forum data when component mounts or ID changes
+   * Includes error handling and loading state management
+   */
   useEffect(() => {
     const fetchForum = async () => {
       try {
@@ -49,6 +95,10 @@ const ForumDetail = () => {
     }
   }, [id, dispatch]);
 
+  /**
+   * Handles forum like/unlike functionality
+   * Implements optimistic updates for better UX
+   */
   const handleLike = async (event: React.MouseEvent) => {
     event.preventDefault(); // Prevents navigation in case of accidental `<a>` behavior
   
@@ -73,6 +123,10 @@ const ForumDetail = () => {
   };
   
 
+  /**
+   * Handles comment like/unlike functionality
+   * Implements optimistic updates for better UX
+   */
   const handleCommentLike = async (commentId: number) => {
     if (!user) {
       navigate('/login');
@@ -98,6 +152,10 @@ const ForumDetail = () => {
   };
   
 
+  /**
+   * Handles new comment submission
+   * Updates UI immediately and handles errors appropriately
+   */
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -114,6 +172,10 @@ const ForumDetail = () => {
     }
   };
 
+  /**
+   * Handles comment update functionality
+   * Updates UI immediately and handles errors appropriately
+   */
   const handleCommentUpdate = async (commentId: number) => {
     try {
       const response = await commentAPI.update(commentId, { content: editContent });
@@ -134,6 +196,10 @@ const ForumDetail = () => {
     }
   };  
 
+  /**
+   * Handles comment deletion
+   * Updates UI immediately and handles errors appropriately
+   */
   const handleCommentDelete = async (commentId: number) => {
     try {
       await commentAPI.delete(commentId);
@@ -148,6 +214,7 @@ const ForumDetail = () => {
     }
   };
 
+  // Loading state
   if (loading) {
     return (
       <Container>
@@ -158,6 +225,7 @@ const ForumDetail = () => {
     );
   }
 
+  // Error state
   if (!currentForum) {
     return (
       <Container>
@@ -169,6 +237,7 @@ const ForumDetail = () => {
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+        {/* Success/Error messages */}
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
             {success}
@@ -180,6 +249,7 @@ const ForumDetail = () => {
           </Alert>
         )}
 
+        {/* Forum header */}
         <Typography variant="h4" component="h1" gutterBottom>
           {currentForum.title}
         </Typography>
@@ -238,6 +308,7 @@ const ForumDetail = () => {
 
         <Divider sx={{ my: 4 }} />
 
+        {/* Comments section */}
         <Typography variant="h6" gutterBottom>
           Comments
         </Typography>
