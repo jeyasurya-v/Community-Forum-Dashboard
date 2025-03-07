@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -16,6 +16,7 @@ import { setCredentials } from '../redux/slices/authSlice';
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -46,6 +47,11 @@ const Login = () => {
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Login
         </Typography>
+        {location.state?.message && (
+          <Typography color="success.main" align="center" gutterBottom>
+            {location.state.message}
+          </Typography>
+        )}
         {error && (
           <Typography color="error" align="center" gutterBottom>
             {error}

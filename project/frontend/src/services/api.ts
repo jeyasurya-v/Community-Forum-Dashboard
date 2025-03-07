@@ -14,6 +14,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      store.dispatch({ type: 'auth/logout' });
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth endpoints
 export const authAPI = {
   register: (data: { username: string; email: string; password: string }) =>

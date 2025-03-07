@@ -24,4 +24,16 @@ export class Comment {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  toJSON() {
+    return {
+      ...this,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+      user: this.user ? {
+        id: this.user.id,
+        username: this.user.username
+      } : null
+    };
+  }
 }

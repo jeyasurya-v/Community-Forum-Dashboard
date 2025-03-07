@@ -8,15 +8,23 @@ const router = Router();
 const forumRepository = AppDataSource.getRepository(Forum);
 const userRepository = AppDataSource.getRepository(User);
 
+// Store likes in memory (in production, use a database table)
+const likes = new Set<string>();
+
 // Get all forums
 router.get('/', async (_req, res) => {
   try {
     const forums = await forumRepository.find({
       relations: ['user', 'comments', 'comments.user'],
+      order: { createdAt: 'DESC' },
     });
     return res.json(forums);
   } catch (error) {
-    return res.status(500).json({ message: 'Error fetching forums' });
+    console.error('Error fetching forums:', error);
+    return res.status(500).json({ 
+      message: 'Error fetching forums',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -34,7 +42,11 @@ router.get('/:id', async (req, res) => {
 
     return res.json(forum);
   } catch (error) {
-    return res.status(500).json({ message: 'Error fetching forum' });
+    console.error('Error fetching forum:', error);
+    return res.status(500).json({ 
+      message: 'Error fetching forum',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -71,7 +83,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const forum = await forumRepository.findOne({
       where: { id: parseInt(req.params.id) },
-      relations: ['user'],
+      relations: ['user', 'comments', 'comments.user'],
     });
 
     if (!forum) {
@@ -82,11 +94,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this forum' });
     }
 
-    Object.assign(forum, req.body);
-    await forumRepository.save(forum);
-    return res.json(forum);
+    // Update only allowed fields
+    const { title, description, tags } = req.body;
+    forum.title = title;
+    forum.description = description;
+    forum.tags = tags;
+
+    const updatedForum = await forumRepository.save(forum);
+    return res.json(updatedForum);
   } catch (error) {
-    return res.status(500).json({ message: 'Error updating forum' });
+    console.error('Error updating forum:', error);
+    return res.status(500).json({ 
+      message: 'Error updating forum',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -132,6 +153,14 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Forum not found' });
     }
 
+    // Check if user has already liked
+    const likeKey = `${req.user.userId}-${forum.id}`;
+    if (likes.has(likeKey)) {
+      return res.status(400).json({ message: 'You have already liked this forum' });
+    }
+
+    // Add like
+    likes.add(likeKey);
     forum.likes += 1;
     await forumRepository.save(forum);
     return res.json(forum);

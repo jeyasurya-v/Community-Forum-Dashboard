@@ -10,6 +10,7 @@ import {
   Grid,
   Chip,
   Box,
+  Container,
 } from '@mui/material';
 import { ThumbUp, Comment } from '@mui/icons-material';
 import { RootState } from '../redux/store';
@@ -37,59 +38,69 @@ const Home = () => {
   }, [dispatch]);
 
   if (loading) {
-    return <Typography>Loading...</Typography>;
+    return (
+      <Container>
+        <Typography align="center">Loading...</Typography>
+      </Container>
+    );
   }
 
   if (error) {
-    return <Typography color="error">{error}</Typography>;
+    return (
+      <Container>
+        <Typography color="error" align="center">{error}</Typography>
+      </Container>
+    );
   }
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Community Forums
-      </Typography>
-      <Grid container spacing={3}>
-        {forums.map((forum) => (
-          <Grid item xs={12} md={6} key={forum.id}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" component={RouterLink} to={`/forum/${forum.id}`} sx={{ textDecoration: 'none' }}>
-                  {forum.title}
-                </Typography>
-                <Typography color="textSecondary" gutterBottom>
-                  Posted by {forum.user.username}
-                </Typography>
-                <Typography variant="body2" color="textSecondary" paragraph>
-                  {forum.description}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                  {forum.tags?.map((tag) => (
-                    <Chip key={tag} label={tag} size="small" />
-                  ))}
-                </Box>
-              </CardContent>
-              <CardActions>
-                <Button startIcon={<ThumbUp />} size="small">
-                  {forum.likes}
-                </Button>
-                <Button startIcon={<Comment />} size="small">
-                  {forum.comments.length}
-                </Button>
-                <Button
-                  component={RouterLink}
-                  to={`/forum/${forum.id}`}
-                  size="small"
-                  color="primary"
-                >
-                  View Discussion
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Box>
+    <Container maxWidth="lg">
+      <Box sx={{ py: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          Community Forums
+        </Typography>
+        <Grid container spacing={3} justifyContent="center">
+          {forums.map((forum) => (
+            <Grid item xs={12} md={8} key={forum.id}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" component={RouterLink} to={`/forum/${forum.id}`} sx={{ textDecoration: 'none' }}>
+                    {forum.title}
+                  </Typography>
+                  <Typography color="textSecondary" gutterBottom>
+                    Posted by {forum.user.username}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" paragraph>
+                    {forum.description}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                    {forum.tags?.map((tag) => (
+                      <Chip key={tag} label={tag} size="small" />
+                    ))}
+                  </Box>
+                </CardContent>
+                <CardActions>
+                  <Button startIcon={<ThumbUp />} size="small">
+                    {forum.likes}
+                  </Button>
+                  <Button startIcon={<Comment />} size="small">
+                    {forum.comments.length}
+                  </Button>
+                  <Button
+                    component={RouterLink}
+                    to={`/forum/${forum.id}`}
+                    size="small"
+                    color="primary"
+                  >
+                    View Discussion
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    </Container>
   );
 };
 

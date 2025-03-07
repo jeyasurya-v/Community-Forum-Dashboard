@@ -7,10 +7,10 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ unique: true })
   username: string;
 
-  @Column()
+  @Column({ unique: true })
   email: string;
 
   @Column()
@@ -30,4 +30,14 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  toJSON() {
+    return {
+      id: this.id,
+      username: this.username,
+      email: this.email,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString()
+    };
+  }
 }

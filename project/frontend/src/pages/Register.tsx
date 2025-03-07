@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -11,10 +10,8 @@ import {
   Box,
 } from '@mui/material';
 import { authAPI } from '../services/api';
-import { setCredentials } from '../redux/slices/authSlice';
 
 const Register = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
@@ -39,13 +36,13 @@ const Register = () => {
     }
 
     try {
-      const response = await authAPI.register({
+      await authAPI.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
       });
-      dispatch(setCredentials(response.data));
-      navigate('/');
+      // Show success message and redirect to login
+      navigate('/login', { state: { message: 'Registration successful! Please login.' } });
     } catch (err) {
       setError('Error creating account');
     }

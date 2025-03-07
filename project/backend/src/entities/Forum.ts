@@ -30,4 +30,25 @@ export class Forum {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  toJSON() {
+    return {
+      ...this,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+      user: this.user ? {
+        id: this.user.id,
+        username: this.user.username
+      } : null,
+      comments: this.comments ? this.comments.map(comment => ({
+        ...comment,
+        createdAt: comment.createdAt.toISOString(),
+        updatedAt: comment.updatedAt.toISOString(),
+        user: comment.user ? {
+          id: comment.user.id,
+          username: comment.user.username
+        } : null
+      })) : []
+    };
+  }
 }

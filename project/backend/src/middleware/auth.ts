@@ -28,8 +28,13 @@ export const authenticateToken = (
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || 'your-secret-key'
+      process.env.JWT_SECRET || '1234567890'
     ) as JwtPayload;
+    
+    if (!decoded.userId) {
+      return res.status(401).json({ message: 'Invalid token format' });
+    }
+
     req.user = decoded;
     return next();
   } catch (error) {
