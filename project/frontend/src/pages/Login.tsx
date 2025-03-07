@@ -9,6 +9,7 @@ import {
   Button,
   Link,
   Box,
+  Alert,
 } from '@mui/material';
 import { authAPI } from '../services/api';
 import { setCredentials } from '../redux/slices/authSlice';
@@ -22,6 +23,7 @@ const Login = () => {
     password: '',
   });
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(location.state?.message || '');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -35,7 +37,8 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       dispatch(setCredentials(response.data));
-      navigate('/');
+      setSuccessMessage('Logged in successfully!');
+      setTimeout(() => navigate('/'), 1000);
     } catch (err) {
       setError('Invalid email or password');
     }
@@ -47,17 +50,17 @@ const Login = () => {
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Login
         </Typography>
-        {location.state?.message && (
-          <Typography color="success.main" align="center" gutterBottom>
-            {location.state.message}
-          </Typography>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
         )}
         {error && (
-          <Typography color="error" align="center" gutterBottom>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
-          </Typography>
+          </Alert>
         )}
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <TextField
             fullWidth
             label="Email"
@@ -67,6 +70,8 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            autoComplete="email"
+            sx={{ mb: 2 }}
           />
           <TextField
             fullWidth
@@ -77,13 +82,15 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            autoComplete="current-password"
+            sx={{ mb: 3 }}
           />
           <Button
             type="submit"
             fullWidth
             variant="contained"
             color="primary"
-            sx={{ mt: 3 }}
+            size="large"
           >
             Login
           </Button>

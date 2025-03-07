@@ -9,37 +9,33 @@ interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
-  isAuthenticated: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
   token: localStorage.getItem('token'),
-  isAuthenticated: false,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (
-      state,
-      action: PayloadAction<{ user: User; token: string }>
-    ) => {
-      const { user, token } = action.payload;
-      state.user = user;
-      state.token = token;
-      state.isAuthenticated = true;
-      localStorage.setItem('token', token);
+    setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      localStorage.setItem('token', action.payload.token);
     },
     logout: (state) => {
       state.user = null;
       state.token = null;
-      state.isAuthenticated = false;
       localStorage.removeItem('token');
+    },
+    restoreSession: (state, action: PayloadAction<{ user: User; token: string }>) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
     },
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, restoreSession } = authSlice.actions;
 export default authSlice.reducer;

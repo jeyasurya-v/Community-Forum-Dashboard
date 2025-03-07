@@ -10,16 +10,24 @@ const commentRepository = AppDataSource.getRepository(Comment);
 const userRepository = AppDataSource.getRepository(User);
 const forumRepository = AppDataSource.getRepository(Forum);
 
+// Store comment likes in memory (in production, use a database table)
+const commentLikes = new Set<string>();
+
 // Get comments by forum ID
 router.get('/forum/:forumId', async (req, res) => {
   try {
     const comments = await commentRepository.find({
       where: { forum: { id: parseInt(req.params.forumId) } },
       relations: ['user'],
+      order: { createdAt: 'DESC' },
     });
     return res.json(comments);
   } catch (error) {
-    return res.status(500).json({ message: 'Error fetching comments' });
+    console.error('Error fetching comments:', error);
+    return res.status(500).json({ 
+      message: 'Error fetching comments',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -30,18 +38,12 @@ router.post('/forum/:forumId', authenticateToken, async (req, res) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const user = await userRepository.findOne({
-      where: { id: req.user.userId },
-    });
-
+    const user = await userRepository.findOne({ where: { id: req.user.userId } });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const forum = await forumRepository.findOne({
-      where: { id: parseInt(req.params.forumId) },
-    });
-
+    const forum = await forumRepository.findOne({ where: { id: parseInt(req.params.forumId) } });
     if (!forum) {
       return res.status(404).json({ message: 'Forum not found' });
     }
@@ -55,7 +57,11 @@ router.post('/forum/:forumId', authenticateToken, async (req, res) => {
     await commentRepository.save(comment);
     return res.status(201).json(comment);
   } catch (error) {
-    return res.status(500).json({ message: 'Error creating comment' });
+    console.error('Error creating comment:', error);
+    return res.status(500).json({ 
+      message: 'Error creating comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -80,10 +86,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     comment.content = req.body.content;
-    await commentRepository.save(comment);
-    return res.json(comment);
+    const updatedComment = await commentRepository.save(comment);
+    return res.json(updatedComment);
   } catch (error) {
-    return res.status(500).json({ message: 'Error updating comment' });
+    console.error('Error updating comment:', error);
+    return res.status(500).json({ 
+      message: 'Error updating comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -110,11 +120,15 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     await commentRepository.remove(comment);
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ message: 'Error deleting comment' });
+    console.error('Error deleting comment:', error);
+    return res.status(500).json({ 
+      message: 'Error deleting comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Like comment
+// Like/Unlike comment
 router.post('/:id/like', authenticateToken, async (req, res) => {
   try {
     if (!req.user?.userId) {
@@ -129,11 +143,27 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
-    comment.likes += 1;
-    await commentRepository.save(comment);
-    return res.json(comment);
+    // Check if user has already liked
+    const likeKey = `${req.user.userId}-${comment.id}`;
+    if (commentLikes.has(likeKey)) {
+      // Unlike
+      commentLikes.delete(likeKey);
+      comment.likes = Math.max(0, comment.likes - 1);
+      await commentRepository.save(comment);
+      return res.json({ ...comment, liked: false });
+    } else {
+      // Like
+      commentLikes.add(likeKey);
+      comment.likes += 1;
+      await commentRepository.save(comment);
+      return res.json({ ...comment, liked: true });
+    }
   } catch (error) {
-    return res.status(500).json({ message: 'Error liking comment' });
+    console.error('Error toggling comment like:', error);
+    return res.status(500).json({ 
+      message: 'Error toggling comment like',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

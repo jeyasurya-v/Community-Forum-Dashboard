@@ -1,113 +1,168 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Paper,
   Typography,
-  Button,
   TextField,
+  Button,
   Box,
-  Divider,
-  IconButton,
   Chip,
+  Divider,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
-import { ThumbUp, Delete, Edit } from '@mui/icons-material';
+import { ThumbUp, Comment, Edit, Delete } from '@mui/icons-material';
 import { RootState } from '../redux/store';
-import { setCurrentForum, setLoading, setError } from '../redux/slices/forumSlice';
 import { forumAPI, commentAPI } from '../services/api';
+import { setCurrentForum, updateForum } from '../redux/slices/forumSlice';
 
 const ForumDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { currentForum, loading, error } = useSelector((state: RootState) => state.forums);
+  const { currentForum } = useSelector((state: RootState) => state.forums);
   const { user } = useSelector((state: RootState) => state.auth);
-  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [commentContent, setCommentContent] = useState('');
+  const [editingComment, setEditingComment] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchForum = async () => {
       try {
-        dispatch(setLoading(true));
         const response = await forumAPI.getById(parseInt(id!));
         dispatch(setCurrentForum(response.data));
       } catch (err) {
-        dispatch(setError('Error fetching forum'));
+        setError('Error fetching forum details');
+        console.error('Error fetching forum:', err);
       } finally {
-        dispatch(setLoading(false));
+        setLoading(false);
       }
     };
 
-    fetchForum();
-  }, [dispatch, id]);
+    if (id) {
+      fetchForum();
+    }
+  }, [id, dispatch]);
 
-  const handleLike = async () => {
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     try {
-      await forumAPI.like(parseInt(id!));
-      const response = await forumAPI.getById(parseInt(id!));
-      dispatch(setCurrentForum(response.data));
+      const response = await forumAPI.like(parseInt(id!));
+      dispatch(updateForum(response.data));
+      setSuccess('Like updated successfully!');
+      setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
-      console.error('Error liking forum:', err);
+      console.error('Error toggling like:', err);
     }
   };
 
-  const handleDelete = async () => {
+  const handleCommentLike = async (commentId: number) => {
     try {
-      await forumAPI.delete(parseInt(id!));
-      navigate('/');
+      const response = await commentAPI.like(commentId);
+      dispatch(setCurrentForum({
+        ...currentForum!,
+        comments: currentForum!.comments.map(comment =>
+          comment.id === commentId ? response.data : comment
+        ),
+      }));
+      setSuccess('Comment like updated successfully!');
+      setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
-      console.error('Error deleting forum:', err);
+      console.error('Error toggling comment like:', err);
     }
   };
 
-  const handleComment = async (e: React.FormEvent) => {
+  const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await commentAPI.create(parseInt(id!), { content: comment });
-      const response = await forumAPI.getById(parseInt(id!));
-      dispatch(setCurrentForum(response.data));
-      setComment('');
+      const response = await commentAPI.create(parseInt(id!), { content: commentContent });
+      dispatch(setCurrentForum({
+        ...currentForum!,
+        comments: [response.data, ...currentForum!.comments],
+      }));
+      setCommentContent('');
+      setSuccess('Comment added successfully!');
+      setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
-      console.error('Error posting comment:', err);
+      console.error('Error creating comment:', err);
+    }
+  };
+
+  const handleCommentUpdate = async (commentId: number) => {
+    try {
+      const response = await commentAPI.update(commentId, { content: commentContent });
+      dispatch(setCurrentForum({
+        ...currentForum!,
+        comments: currentForum!.comments.map(comment =>
+          comment.id === commentId ? response.data : comment
+        ),
+      }));
+      setCommentContent('');
+      setEditingComment(null);
+      setSuccess('Comment updated successfully!');
+      setTimeout(() => setSuccess(''), 2000);
+    } catch (err) {
+      console.error('Error updating comment:', err);
     }
   };
 
   const handleCommentDelete = async (commentId: number) => {
     try {
       await commentAPI.delete(commentId);
-      const response = await forumAPI.getById(parseInt(id!));
-      dispatch(setCurrentForum(response.data));
+      dispatch(setCurrentForum({
+        ...currentForum!,
+        comments: currentForum!.comments.filter(comment => comment.id !== commentId),
+      }));
+      setSuccess('Comment deleted successfully!');
+      setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error deleting comment:', err);
     }
   };
 
   if (loading) {
-    return <Typography>Loading...</Typography>;
+    return (
+      <Container>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
   }
 
-  if (error || !currentForum) {
-    return <Typography color="error">{error || 'Forum not found'}</Typography>;
+  if (!currentForum) {
+    return (
+      <Container>
+        <Alert severity="error">Forum not found</Alert>
+      </Container>
+    );
   }
 
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h4" component="h1">
-            {currentForum.title}
-          </Typography>
-          {user && user.id === currentForum.user.id && (
-            <Box>
-              <IconButton onClick={handleDelete} color="error">
-                <Delete />
-              </IconButton>
-              <IconButton onClick={() => navigate(`/forum/${id}/edit`)}>
-                <Edit />
-              </IconButton>
-            </Box>
-          )}
-        </Box>
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Typography variant="h4" component="h1" gutterBottom>
+          {currentForum.title}
+        </Typography>
         <Typography color="textSecondary" gutterBottom>
           Posted by {currentForum.user.username}
         </Typography>
@@ -116,33 +171,66 @@ const ForumDetail = () => {
             <Chip key={tag} label={tag} size="small" />
           ))}
         </Box>
-        <Typography paragraph>{currentForum.description}</Typography>
-        <Button
-          startIcon={<ThumbUp />}
-          onClick={handleLike}
-          variant="outlined"
-          sx={{ mb: 3 }}
-        >
-          {currentForum.likes} Likes
-        </Button>
+        <Typography variant="body1" paragraph>
+          {currentForum.description}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+          <Button
+            startIcon={<ThumbUp />}
+            color={currentForum.liked ? 'primary' : 'inherit'}
+            onClick={handleLike}
+          >
+            {currentForum.likes}
+          </Button>
+          <Button startIcon={<Comment />}>
+            {currentForum.comments.length} Comments
+          </Button>
+          {user && user.id === currentForum.user.id && (
+            <>
+              <Button
+                startIcon={<Edit />}
+                onClick={() => navigate(`/forum/${id}/edit`)}
+              >
+                Edit
+              </Button>
+              <Button
+                startIcon={<Delete />}
+                color="error"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this forum?')) {
+                    forumAPI.delete(parseInt(id!));
+                    navigate('/');
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        </Box>
 
-        <Divider sx={{ my: 3 }} />
+        <Divider sx={{ my: 4 }} />
 
         <Typography variant="h6" gutterBottom>
           Comments
         </Typography>
         {user && (
-          <Box component="form" onSubmit={handleComment} sx={{ mb: 3 }}>
+          <Box component="form" onSubmit={handleCommentSubmit} sx={{ mb: 4 }}>
             <TextField
               fullWidth
               multiline
               rows={3}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment..."
+              value={commentContent}
+              onChange={(e) => setCommentContent(e.target.value)}
+              placeholder="Write a comment..."
               sx={{ mb: 2 }}
             />
-            <Button type="submit" variant="contained" color="primary">
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={!commentContent.trim()}
+            >
               Post Comment
             </Button>
           </Box>
@@ -150,28 +238,79 @@ const ForumDetail = () => {
 
         {currentForum.comments.map((comment) => (
           <Paper key={comment.id} sx={{ p: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="subtitle1">{comment.user.username}</Typography>
-              {user && user.id === comment.user.id && (
-                <IconButton
-                  size="small"
-                  onClick={() => handleCommentDelete(comment.id)}
-                  color="error"
-                >
-                  <Delete />
-                </IconButton>
-              )}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="subtitle2">
+                {comment.user.username}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                {new Date(comment.createdAt).toLocaleDateString()}
+              </Typography>
             </Box>
-            <Typography variant="body2" color="textSecondary" paragraph>
-              {comment.content}
-            </Typography>
-            <Button
-              startIcon={<ThumbUp />}
-              size="small"
-              onClick={() => commentAPI.like(comment.id)}
-            >
-              {comment.likes} Likes
-            </Button>
+            {editingComment === comment.id ? (
+              <Box>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={commentContent}
+                  onChange={(e) => setCommentContent(e.target.value)}
+                  sx={{ mb: 1 }}
+                />
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={() => handleCommentUpdate(comment.id)}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setEditingComment(null);
+                      setCommentContent('');
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Typography variant="body2" paragraph>
+                  {comment.content}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Button
+                    startIcon={<ThumbUp />}
+                    size="small"
+                    color={comment.liked ? 'primary' : 'inherit'}
+                    onClick={() => handleCommentLike(comment.id)}
+                  >
+                    {comment.likes}
+                  </Button>
+                  {user && user.id === comment.user.id && (
+                    <>
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setEditingComment(comment.id);
+                          setCommentContent(comment.content);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleCommentDelete(comment.id)}
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
+                </Box>
+              </>
+            )}
           </Paper>
         ))}
       </Paper>

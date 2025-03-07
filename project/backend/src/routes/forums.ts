@@ -138,7 +138,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Like forum
+// Like/Unlike forum
 router.post('/:id/like', authenticateToken, async (req, res) => {
   try {
     if (!req.user?.userId) {
@@ -156,16 +156,24 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     // Check if user has already liked
     const likeKey = `${req.user.userId}-${forum.id}`;
     if (likes.has(likeKey)) {
-      return res.status(400).json({ message: 'You have already liked this forum' });
+      // Unlike
+      likes.delete(likeKey);
+      forum.likes = Math.max(0, forum.likes - 1);
+      await forumRepository.save(forum);
+      return res.json({ ...forum, liked: false });
+    } else {
+      // Like
+      likes.add(likeKey);
+      forum.likes += 1;
+      await forumRepository.save(forum);
+      return res.json({ ...forum, liked: true });
     }
-
-    // Add like
-    likes.add(likeKey);
-    forum.likes += 1;
-    await forumRepository.save(forum);
-    return res.json(forum);
   } catch (error) {
-    return res.status(500).json({ message: 'Error liking forum' });
+    console.error('Error toggling like:', error);
+    return res.status(500).json({ 
+      message: 'Error toggling like',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

@@ -32,6 +32,7 @@ export const authAPI = {
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
+  getCurrentUser: () => api.get('/auth/me'),
 };
 
 // Forum endpoints

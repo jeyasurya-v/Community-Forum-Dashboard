@@ -1,18 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface Forum {
+interface User {
   id: number;
-  title: string;
-  description: string;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-  likes: number;
-  user: {
-    id: number;
-    username: string;
-  };
-  comments: Comment[];
+  username: string;
+  email: string;
 }
 
 interface Comment {
@@ -21,10 +12,27 @@ interface Comment {
   createdAt: string;
   updatedAt: string;
   likes: number;
+  liked?: boolean;
   user: {
     id: number;
     username: string;
   };
+}
+
+interface Forum {
+  id: number;
+  title: string;
+  description: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  likes: number;
+  liked?: boolean;
+  user: {
+    id: number;
+    username: string;
+  };
+  comments: Comment[];
 }
 
 interface ForumState {

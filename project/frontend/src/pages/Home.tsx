@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -11,15 +11,92 @@ import {
   Chip,
   Box,
   Container,
+  TextField,
+  Pagination,
+  Skeleton,
+  InputAdornment,
+  Alert,
 } from '@mui/material';
-import { ThumbUp, Comment } from '@mui/icons-material';
+import { ThumbUp, Comment, Search } from '@mui/icons-material';
 import { RootState } from '../redux/store';
 import { setForums, setLoading, setError } from '../redux/slices/forumSlice';
 import { forumAPI } from '../services/api';
 
+const ITEMS_PER_PAGE = 10;
+
+const ForumCard = ({ forum, onLike }: { forum: any; onLike: (id: number) => void }) => (
+  <Card sx={{ 
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: 6,
+    }
+  }}>
+    <CardContent sx={{ flexGrow: 1 }}>
+      <Typography variant="h6" component={RouterLink} to={`/forum/${forum.id}`} sx={{ textDecoration: 'none' }}>
+        {forum.title}
+      </Typography>
+      <Typography color="textSecondary" gutterBottom>
+        Posted by {forum.user.username}
+      </Typography>
+      <Typography variant="body2" color="textSecondary" paragraph>
+        {forum.description}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+        {forum.tags?.map((tag: string) => (
+          <Chip key={tag} label={tag} size="small" />
+        ))}
+      </Box>
+    </CardContent>
+    <CardActions>
+      <Button 
+        startIcon={<ThumbUp />} 
+        size="small"
+        color={forum.liked ? 'primary' : 'inherit'}
+        onClick={() => onLike(forum.id)}
+      >
+        {forum.likes}
+      </Button>
+      <Button startIcon={<Comment />} size="small">
+        {forum.comments.length}
+      </Button>
+      <Button
+        component={RouterLink}
+        to={`/forum/${forum.id}`}
+        size="small"
+        color="primary"
+      >
+        View Discussion
+      </Button>
+    </CardActions>
+  </Card>
+);
+
+const LoadingCard = () => (
+  <Card sx={{ height: '100%' }}>
+    <CardContent>
+      <Skeleton variant="text" height={32} />
+      <Skeleton variant="text" height={24} />
+      <Skeleton variant="text" height={100} />
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Skeleton variant="rectangular" width={60} height={24} />
+      </Box>
+    </CardContent>
+    <CardActions>
+      <Skeleton variant="rectangular" width={80} height={32} />
+    </CardActions>
+  </Card>
+);
+
 const Home = () => {
   const dispatch = useDispatch();
   const { forums, loading, error } = useSelector((state: RootState) => state.forums);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredForums, setFilteredForums] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchForums = async () => {
@@ -37,18 +114,42 @@ const Home = () => {
     fetchForums();
   }, [dispatch]);
 
-  if (loading) {
-    return (
-      <Container>
-        <Typography align="center">Loading...</Typography>
-      </Container>
+  useEffect(() => {
+    const filtered = forums.filter(forum =>
+      forum.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      forum.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      forum.tags?.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }
+    setFilteredForums(filtered);
+    setPage(1);
+  }, [forums, searchQuery]);
+
+  const handleLike = async (forumId: number) => {
+    try {
+      const response = await forumAPI.like(forumId);
+      dispatch(setForums(forums.map(forum => 
+        forum.id === forumId ? response.data : forum
+      )));
+    } catch (err) {
+      console.error('Error toggling like:', err);
+    }
+  };
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+  };
+
+  const paginatedForums = filteredForums.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
+
+  const totalPages = Math.ceil(filteredForums.length / ITEMS_PER_PAGE);
 
   if (error) {
     return (
       <Container>
-        <Typography color="error" align="center">{error}</Typography>
+        <Alert severity="error" sx={{ mt: 4 }}>{error}</Alert>
       </Container>
     );
   }
@@ -59,46 +160,56 @@ const Home = () => {
         <Typography variant="h4" component="h1" gutterBottom align="center">
           Community Forums
         </Typography>
+        
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Search forums..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ mb: 4 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
+        />
+
         <Grid container spacing={3} justifyContent="center">
-          {forums.map((forum) => (
-            <Grid item xs={12} md={8} key={forum.id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" component={RouterLink} to={`/forum/${forum.id}`} sx={{ textDecoration: 'none' }}>
-                    {forum.title}
-                  </Typography>
-                  <Typography color="textSecondary" gutterBottom>
-                    Posted by {forum.user.username}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary" paragraph>
-                    {forum.description}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                    {forum.tags?.map((tag) => (
-                      <Chip key={tag} label={tag} size="small" />
-                    ))}
-                  </Box>
-                </CardContent>
-                <CardActions>
-                  <Button startIcon={<ThumbUp />} size="small">
-                    {forum.likes}
-                  </Button>
-                  <Button startIcon={<Comment />} size="small">
-                    {forum.comments.length}
-                  </Button>
-                  <Button
-                    component={RouterLink}
-                    to={`/forum/${forum.id}`}
-                    size="small"
-                    color="primary"
-                  >
-                    View Discussion
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
+          {loading ? (
+            Array.from(new Array(3)).map((_, index) => (
+              <Grid item xs={12} md={8} key={index}>
+                <LoadingCard />
+              </Grid>
+            ))
+          ) : (
+            paginatedForums.map((forum) => (
+              <Grid item xs={12} md={8} key={forum.id}>
+                <ForumCard forum={forum} onLike={handleLike} />
+              </Grid>
+            ))
+          )}
         </Grid>
+
+        {!loading && filteredForums.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={handlePageChange}
+              color="primary"
+              size="large"
+            />
+          </Box>
+        )}
+
+        {!loading && filteredForums.length === 0 && (
+          <Typography align="center" color="textSecondary">
+            No forums found matching your search.
+          </Typography>
+        )}
       </Box>
     </Container>
   );
