@@ -26,3 +26,5 @@ AppDataSource.initialize()
     });
   })
   .catch((error) => console.log('TypeORM connection error: ', error));
+
+export { AppDataSource };

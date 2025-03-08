@@ -2,34 +2,17 @@ import axios from "axios";
 import { store } from "../redux/store";
 import { logout } from "../redux/slices/authSlice";
 
+/**
+ * Base API instance with default configuration
+ */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001",
 });
 
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-// Store last visited page
-const saveLastPage = () => {
-  localStorage.setItem("lastPage", window.location.pathname);
-};
-
-// Restore last visited page
-const getLastPage = () => localStorage.getItem("lastPage") || "/";
-
-// Process queued requests
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-// Attach token to requests
+/**
+ * Request interceptor to attach authentication token
+ * Automatically adds Bearer token to all requests if available
+ */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -41,70 +24,70 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Handle token expiration
+/**
+ * Response interceptor to handle authentication errors
+ * Automatically logs out user if token is invalid or expired
+ */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    // If unauthorized (401) and not already retried
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        try {
-          const token = await new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          });
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        } catch (err) {
-          return Promise.reject(err);
-        }
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("No token available");
-        }
-
-        // Try to get current user to validate token
-        await authAPI.getCurrentUser();
-
-        processQueue(null, token);
-        return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        store.dispatch(logout());
-        localStorage.removeItem("token");
-
-        // Save last visited page before redirecting
-        saveLastPage();
-
-        // Redirect to login, but return to the same page after login
-        window.location.href = `/login?redirect=${getLastPage()}`;
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+    if (error.response && [401, 403].includes(error.response.status)) {
+      localStorage.removeItem("token");
+      store.dispatch(logout());
     }
-
     return Promise.reject(error);
   }
 );
 
-// Auth endpoints
+/**
+ * Authentication API endpoints
+ */
 export const authAPI = {
-  register: (data: { username: string; email: string; password: string }) =>
-    api.post("/auth/register", data),
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
+  /**
+   * Register a new user
+   * @param data User registration data
+   * @returns API response with token and user data
+   */
+  register: async (data: { username: string; email: string; password: string }) => {
+    const response = await api.post("/auth/register", data);
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+    }
+    return response;
+  },
+
+  /**
+   * Login existing user
+   * @param data User login credentials
+   * @returns API response with token and user data
+   */
+  login: async (data: { email: string; password: string }) => {
+    const response = await api.post("/auth/login", data);
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+    }
+    return response;
+  },
+
+  /**
+   * Get current authenticated user's data
+   * @returns API response with user data
+   */
   getCurrentUser: () => api.get("/auth/me"),
+
+  /**
+   * Logout current user
+   * Clears token from storage and resets auth state
+   */
+  logout: () => {
+    localStorage.removeItem("token");
+    store.dispatch(logout());
+  }
 };
 
-// Forum endpoints
+/**
+ * Forum API endpoints
+ */
 export const forumAPI = {
   getAll: () => api.get("/forums"),
   getById: (id: number) => api.get(`/forums/${id}`),
@@ -116,7 +99,9 @@ export const forumAPI = {
   like: (id: number) => api.post(`/forums/${id}/like`),
 };
 
-// Comment endpoints
+/**
+ * Comment API endpoints
+ */
 export const commentAPI = {
   getByForum: (forumId: number) => api.get(`/comments/forum/${forumId}`),
   create: (forumId: number, data: { content: string }) =>

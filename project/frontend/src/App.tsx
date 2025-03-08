@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { RootState } from './redux/store';
-import { restoreSession, logout } from './redux/slices/authSlice';
+import { restoreSession, logout, setInitialized } from './redux/slices/authSlice';
 import { authAPI } from './services/api';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -15,6 +15,9 @@ import CreateForum from './pages/CreateForum';
 import EditForum from './pages/EditForum';
 import Profile from './pages/Profile';
 
+/**
+ * Application theme configuration
+ */
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -27,52 +30,78 @@ const theme = createTheme({
   },
 });
 
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+interface PrivateRouteProps {
+  children: React.ReactNode;
+}
+
+/**
+ * PrivateRoute component
+ * Protects routes that require authentication
+ * Redirects to login if user is not authenticated
+ */
+const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const location = useLocation();
+  const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
+  const localStorageToken = localStorage.getItem("token");
+  console.log("localStorageToken", localStorageToken);
+
+  if (!isInitialized) {
+    return <div>Loading...</div>;
+  }
   
-  if (!isAuthenticated) {
+  if (!localStorageToken) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   return <>{children}</>;
 };
 
-const App: React.FC = () => {
+/**
+ * Main App component
+ * Handles authentication initialization and routing
+ */
+const App = () => {
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
-  console.log("User Authenticated:", isAuthenticated);
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * Check authentication status on app load
+   * Restores user session if valid token exists
+   */
   useEffect(() => {
-    const restoreUserSession = async () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const response = await authAPI.getCurrentUser();
-          dispatch(restoreSession({ user: response.data, token }));
-  
-          // Restore last visited page (if exists)
-          const lastVisitedPage = localStorage.getItem("lastVisitedPage");
-          if (lastVisitedPage) {
-            window.history.replaceState(null, "", lastVisitedPage);
-            localStorage.removeItem("lastVisitedPage"); // Clear after restoring
-          }
-        } catch (error) {
-          console.error("Error restoring session:", error);
-          localStorage.removeItem("token"); // Clear invalid token
-          dispatch(logout());
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem("token");
+    
+        if (!token) {
+          dispatch(setInitialized());
+          setIsLoading(false);
+          return;
         }
+    
+        // Verify token with backend
+        const response = await authAPI.getCurrentUser();
+    
+        if (response.data) {
+          dispatch(restoreSession({ user: response.data }));
+        } else {
+          throw new Error("Invalid session");
+        }
+      } catch (error) {
+        console.error("Authentication error:", error);
+        localStorage.removeItem("token");
+        dispatch(logout());
+      } finally {
+        dispatch(setInitialized());
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    };
-  
-    restoreUserSession();
+    };    
+
+    checkAuth();
   }, [dispatch]);
-  
 
   if (isLoading) {
-    return null; // or a loading spinner
+    return <div>Loading application...</div>;
   }
 
   return (
@@ -81,48 +110,13 @@ const App: React.FC = () => {
       <Router>
         <Navbar />
         <Routes>
-          <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
-          <Route path="/register" element={!isAuthenticated ? <Register /> : <Navigate to="/" />} />
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Home />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/create-forum"
-            element={
-              <PrivateRoute>
-                <CreateForum />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/forum/:id/edit"
-            element={
-              <PrivateRoute>
-                <EditForum />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/forum/:id"
-            element={
-              <PrivateRoute>
-                <ForumDetail />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <PrivateRoute>
-                <Profile />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+          <Route path="/create-forum" element={<PrivateRoute><CreateForum /></PrivateRoute>} />
+          <Route path="/forum/:id/edit" element={<PrivateRoute><EditForum /></PrivateRoute>} />
+          <Route path="/forum/:id" element={<PrivateRoute><ForumDetail /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>

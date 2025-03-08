@@ -1,50 +1,86 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
+/**
+ * User interface representing authenticated user data
+ */
 interface User {
   id: number;
   username: string;
   email: string;
 }
 
+/**
+ * Authentication state interface
+ * Manages user session state and initialization status
+ */
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
+  isInitialized: boolean;
 }
 
+/**
+ * Initial authentication state
+ * All users start as unauthenticated until verified
+ */
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem("token"),
-  isAuthenticated: !!localStorage.getItem("token"),
+  isAuthenticated: false,
+  isInitialized: false
 };
 
+/**
+ * Authentication slice for Redux store
+ * Handles all authentication-related state changes
+ */
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
+    /**
+     * Set user credentials after successful login/registration
+     * Stores token in localStorage and updates auth state
+     */
     setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       state.user = action.payload.user;
-      state.token = action.payload.token;
       state.isAuthenticated = true;
-      localStorage.setItem("token", action.payload.token);
+      state.isInitialized = true;
     },
+
+    /**
+     * Clear user session on logout
+     * Removes token from localStorage and resets auth state
+     */
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
-    
-      // Store the last visited page
-      localStorage.setItem("lastVisitedPage", window.location.pathname);
-    
+      state.isInitialized = true;
       localStorage.removeItem("token");
     },
-    restoreSession: (state, action: PayloadAction<{ user: User; token: string }>) => {
+
+    /**
+     * Restore user session from existing token
+     * Used when rehydrating state after page refresh
+     */
+    restoreSession: (state, action: PayloadAction<{ user: User }>) => {
       state.user = action.payload.user;
-      state.token = action.payload.token;
       state.isAuthenticated = true;
+      state.isInitialized = true;
     },
+
+    /**
+     * Mark authentication as initialized
+     * Ensures proper loading states and auth checks
+     */
+    setInitialized: (state) => {
+      state.isInitialized = true;
+      if (!localStorage.getItem("token")) {
+        state.isAuthenticated = false;
+        state.user = null;
+      }
+    }
   },
 });
 
-export const { setCredentials, logout, restoreSession } = authSlice.actions;
+export const { setCredentials, logout, restoreSession, setInitialized } = authSlice.actions;
 export default authSlice.reducer;

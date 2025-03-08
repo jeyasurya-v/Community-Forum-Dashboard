@@ -40,6 +40,7 @@ const Login = () => {
     e.preventDefault();
     try {
       const response = await authAPI.login(formData);
+      localStorage.setItem("token", response.data.token);
       dispatch(setCredentials(response.data));
       setSuccessMessage("Logged in successfully!");
       

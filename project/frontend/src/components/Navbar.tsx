@@ -35,7 +35,7 @@ const Navbar = () => {
             to="/"
             sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
           >
-            Community Forums
+            Community Forums Dashboard
           </Typography>
           <Box>
             {user ? (
