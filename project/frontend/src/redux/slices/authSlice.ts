@@ -1,7 +1,22 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 /**
- * User interface representing authenticated user data
+ * Authentication System Overview
+ * 
+ * This slice manages the authentication state for the entire application.
+ * Key Features:
+ * 1. Token Management: JWT stored in localStorage for persistence
+ * 2. User State: Current user data maintained in Redux
+ * 3. Authentication Status: Tracks login state and initialization
+ * 4. Session Restoration: Handles page refresh and token validation
+ */
+
+/**
+ * User Interface
+ * Defines the structure of authenticated user data
+ * - id: Unique identifier
+ * - username: Display name
+ * - email: User's email address
  */
 interface User {
   id: number;
@@ -10,8 +25,11 @@ interface User {
 }
 
 /**
- * Authentication state interface
- * Manages user session state and initialization status
+ * Authentication State Interface
+ * Manages the complete authentication state
+ * - user: Current user data (null if not authenticated)
+ * - isAuthenticated: Boolean flag for auth status
+ * - isInitialized: Ensures auth system is ready
  */
 interface AuthState {
   user: User | null;
@@ -20,8 +38,10 @@ interface AuthState {
 }
 
 /**
- * Initial authentication state
- * All users start as unauthenticated until verified
+ * Initial Authentication State
+ * Default state when application loads
+ * - All users start as unauthenticated
+ * - System begins in uninitialized state
  */
 const initialState: AuthState = {
   user: null,
@@ -30,26 +50,39 @@ const initialState: AuthState = {
 };
 
 /**
- * Authentication slice for Redux store
- * Handles all authentication-related state changes
+ * Authentication Slice
+ * Manages all authentication-related state changes
+ * 
+ * Key Actions:
+ * - setCredentials: Sets up new authenticated session
+ * - logout: Cleans up user session
+ * - restoreSession: Rehydrates state after page refresh
+ * - setInitialized: Marks auth system as ready
  */
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
     /**
-     * Set user credentials after successful login/registration
-     * Stores token in localStorage and updates auth state
+     * Set User Credentials
+     * Called after successful login/registration
+     * - Updates user data
+     * - Marks as authenticated
+     * - Stores token in localStorage
      */
     setCredentials: (state, action: PayloadAction<{ user: User; token: string }>) => {
       state.user = action.payload.user;
       state.isAuthenticated = true;
       state.isInitialized = true;
+      // localStorage.setItem("token", action.payload.token);
     },
 
     /**
-     * Clear user session on logout
-     * Removes token from localStorage and resets auth state
+     * Logout User
+     * Cleans up the authenticated session
+     * - Clears user data
+     * - Removes token from localStorage
+     * - Resets authentication state
      */
     logout: (state) => {
       state.user = null;
@@ -59,8 +92,10 @@ const authSlice = createSlice({
     },
 
     /**
-     * Restore user session from existing token
-     * Used when rehydrating state after page refresh
+     * Restore User Session
+     * Called when rehydrating state (e.g., after page refresh)
+     * - Restores user data from validated token
+     * - Maintains authentication state
      */
     restoreSession: (state, action: PayloadAction<{ user: User }>) => {
       state.user = action.payload.user;
@@ -69,8 +104,10 @@ const authSlice = createSlice({
     },
 
     /**
-     * Mark authentication as initialized
-     * Ensures proper loading states and auth checks
+     * Set Initialization Status
+     * Marks the authentication system as ready
+     * - Checks token presence
+     * - Updates authentication state accordingly
      */
     setInitialized: (state) => {
       state.isInitialized = true;

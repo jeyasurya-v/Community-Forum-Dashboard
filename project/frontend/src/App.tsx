@@ -41,15 +41,9 @@ interface PrivateRouteProps {
  */
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const location = useLocation();
-  // const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
-  // const localStorageToken = localStorage.getItem("token");
   const [token, setToken] = useState(() => {
     return localStorage.getItem("token") || ''; // Default to empty string if no data
   });
-
-  // if (!isInitialized) {
-    // return <div>Loading...</div>;
-  // }
   
   if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -69,26 +63,21 @@ const App = () => {
     return localStorage.getItem("token") || ''; // Default to empty string if no data
   });
 
-  /**
-   * Check authentication status on app load
-   * Restores user session if valid token exists
-   */
   useEffect(() => {
     const checkAuth = async () => {
-      try {    
+      try {
         if (!token) {
           dispatch(setInitialized());
           setIsLoading(false);
           return;
         }
       } catch (error) {
-        console.error("Authentication error:", error);
         dispatch(logout());
       } finally {
         dispatch(setInitialized());
         setIsLoading(false);
       }
-    };    
+    };
 
     checkAuth();
   }, []);

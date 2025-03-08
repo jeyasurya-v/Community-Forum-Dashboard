@@ -16,7 +16,6 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    console.log("token 100", token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -69,12 +68,6 @@ export const authAPI = {
     }
     return response;
   },
-
-  /**
-   * Get current authenticated user's data
-   * @returns API response with user data
-   */
-  getCurrentUser: () => api.get("/auth/me"),
 
   /**
    * Logout current user
