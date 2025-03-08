@@ -19,7 +19,7 @@ import { forumAPI } from '../services/api';
 
 const Profile = () => {
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const user = localStorage.getItem('user');
   const { forums, loading, error } = useSelector((state: RootState) => state.forums);
 
   useEffect(() => {

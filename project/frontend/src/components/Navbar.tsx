@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { AppBar, Toolbar, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../redux/store';
+import { useDispatch } from 'react-redux';
 import { logout } from '../redux/slices/authSlice';
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const isToken = localStorage.getItem('token');
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   const handleLogoutClick = () => {
@@ -38,7 +37,7 @@ const Navbar = () => {
             Community Forums Dashboard
           </Typography>
           <Box>
-            {user ? (
+            {isToken ? (
               <>
                 <Button
                   color="inherit"

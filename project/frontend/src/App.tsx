@@ -41,15 +41,17 @@ interface PrivateRouteProps {
  */
 const PrivateRoute = ({ children }: PrivateRouteProps) => {
   const location = useLocation();
-  const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
-  const localStorageToken = localStorage.getItem("token");
-  console.log("localStorageToken", localStorageToken);
+  // const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
+  // const localStorageToken = localStorage.getItem("token");
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem("token") || ''; // Default to empty string if no data
+  });
 
-  if (!isInitialized) {
-    return <div>Loading...</div>;
-  }
+  // if (!isInitialized) {
+    // return <div>Loading...</div>;
+  // }
   
-  if (!localStorageToken) {
+  if (!token) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
@@ -63,6 +65,9 @@ const PrivateRoute = ({ children }: PrivateRouteProps) => {
 const App = () => {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem("token") || ''; // Default to empty string if no data
+  });
 
   /**
    * Check authentication status on app load
@@ -70,26 +75,14 @@ const App = () => {
    */
   useEffect(() => {
     const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem("token");
-    
+      try {    
         if (!token) {
           dispatch(setInitialized());
           setIsLoading(false);
           return;
         }
-    
-        // Verify token with backend
-        const response = await authAPI.getCurrentUser();
-    
-        if (response.data) {
-          dispatch(restoreSession({ user: response.data }));
-        } else {
-          throw new Error("Invalid session");
-        }
       } catch (error) {
         console.error("Authentication error:", error);
-        localStorage.removeItem("token");
         dispatch(logout());
       } finally {
         dispatch(setInitialized());
@@ -98,7 +91,7 @@ const App = () => {
     };    
 
     checkAuth();
-  }, [dispatch]);
+  }, []);
 
   if (isLoading) {
     return <div>Loading application...</div>;
