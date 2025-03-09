@@ -45,19 +45,6 @@ interface Comment {
   createdAt: string;
 }
 
-interface Forum {
-  id: number;
-  title: string;
-  description: string;
-  tags: string[];
-  user: {
-    id: number;
-    username: string;
-  };
-  likes: number;
-  liked: boolean;
-  comments: Comment[];
-}
 
 const ForumDetail: React.FC = () => {
   // Hooks and state
@@ -100,7 +87,7 @@ const ForumDetail: React.FC = () => {
    * Implements optimistic updates for better UX
    */
   const handleLike = async (event: React.MouseEvent) => {
-    event.preventDefault(); // Prevents navigation in case of accidental `<a>` behavior
+    event.preventDefault();
   
     if (!user) {
       navigate('/login');
@@ -108,17 +95,22 @@ const ForumDetail: React.FC = () => {
     }
   
     try {  
-      // Toggle like status and update likes count correctly
+      // Optimistically update UI
       dispatch(updateForum({
         ...currentForum!,
         liked: !currentForum!.liked, 
         likes: currentForum!.liked ? currentForum!.likes - 1 : currentForum!.likes + 1
       }));
-  
+
+      // Make API call
+      await forumAPI.like(currentForum!.id);
       setSuccess('Like updated successfully!');
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error toggling like:', err);
+      // Revert on error
+      const response = await forumAPI.getById(currentForum!.id);
+      dispatch(updateForum(response.data));
     }
   };
   
@@ -144,10 +136,20 @@ const ForumDetail: React.FC = () => {
         ),
       }));
   
+      // Make API call to persist the like
+      await commentAPI.like(commentId);
+
+      // Fetch updated data to ensure consistency
+      const response = await forumAPI.getById(currentForum!.id);
+      dispatch(setCurrentForum(response.data));
+      
       setSuccess('Comment like updated successfully!');
       setTimeout(() => setSuccess(''), 2000);
     } catch (err) {
       console.error('Error toggling comment like:', err);
+      // Revert on error by fetching latest data
+      const response = await forumAPI.getById(currentForum!.id);
+      dispatch(setCurrentForum(response.data));
     }
   };
   
@@ -214,6 +216,27 @@ const ForumDetail: React.FC = () => {
     }
   };
 
+  /**
+   * Handles forum deletion
+   * Redirects to home page after successful deletion
+   */
+  const handleForumDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this forum?')) {
+      return;
+    }
+
+    try {
+      await forumAPI.delete(parseInt(id!));
+      setSuccess('Forum deleted successfully!');
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (err) {
+      console.error('Error deleting forum:', err);
+      setError('Error deleting forum');
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -235,8 +258,8 @@ const ForumDetail: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="md">
-      <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
+    <Container maxWidth="md" sx={{ px: { xs: 2, sm: 3 } }}>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3, md: 4 }, mt: { xs: 2, sm: 3, md: 4 } }}>
         {/* Success/Error messages */}
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
@@ -250,21 +273,63 @@ const ForumDetail: React.FC = () => {
         )}
 
         {/* Forum header */}
-        <Typography variant="h4" component="h1" gutterBottom>
-          {currentForum.title}
-        </Typography>
+        <Box 
+          sx={{
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between', 
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            gap: { xs: 2, sm: 0 },
+            mb: 2
+          }}
+        >
+          <Typography 
+            variant="h4" 
+            component="h1"
+            sx={{ 
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' },
+              wordBreak: 'break-word'
+            }}
+          >
+            {currentForum.title}
+          </Typography>
+          {user && user.id === currentForum.user.id && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                startIcon={<Edit />}
+                onClick={() => navigate(`/forum/${id}/edit`)}
+              >
+                Edit
+              </Button>
+              <Button
+                startIcon={<Delete />}
+                color="error"
+                onClick={handleForumDelete}
+              >
+                Delete
+              </Button>
+            </Box>
+          )}
+        </Box>
         <Typography color="textSecondary" gutterBottom>
           Posted by {currentForum.user.username}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           {currentForum.tags?.map((tag) => (
             <Chip key={tag} label={tag} size="small" />
           ))}
         </Box>
-        <Typography variant="body1" paragraph>
+        <Typography 
+          variant="body1" 
+          paragraph
+          sx={{ 
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
           {currentForum.description}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
+        <Box sx={{ display: 'flex', gap: 2, mb: { xs: 2, sm: 4 } }}>
           <Button
             startIcon={<ThumbUp />}
             color={currentForum.liked ? 'primary' : 'inherit'}
@@ -280,40 +345,16 @@ const ForumDetail: React.FC = () => {
           >
             {currentForum.comments.length} Comments
           </Button>
-          {user && user.id === currentForum.user.id && (
-            <>
-              <Button
-                startIcon={<Edit />}
-                onClick={() => navigate(`/forum/${id}/edit`)}
-                type="button"
-              >
-                Edit
-              </Button>
-              <Button
-                startIcon={<Delete />}
-                color="error"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this forum?')) {
-                    forumAPI.delete(parseInt(id!));
-                    navigate('/');
-                  }
-                }}
-                type="button"
-              >
-                Delete
-              </Button>
-            </>
-          )}
         </Box>
 
-        <Divider sx={{ my: 4 }} />
+        <Divider sx={{ my: { xs: 2, sm: 4 } }} />
 
         {/* Comments section */}
         <Typography variant="h6" gutterBottom>
           Comments
         </Typography>
         {user && (
-          <Box component="form" onSubmit={handleCommentSubmit} sx={{ mb: 4 }}>
+          <Box component="form" onSubmit={handleCommentSubmit} sx={{ mb: { xs: 2, sm: 4 } }}>
             <TextField
               fullWidth
               multiline
@@ -335,8 +376,16 @@ const ForumDetail: React.FC = () => {
         )}
 
         {currentForum.comments.map((comment) => (
-          <Paper key={comment.id} sx={{ p: 2, mb: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Paper key={comment.id} sx={{ p: { xs: 1.5, sm: 2 }, mb: 2 }}>
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', sm: 'row' },
+                justifyContent: 'space-between', 
+                mb: 1,
+                gap: { xs: 0.5, sm: 0 }
+              }}
+            >
               <Typography variant="subtitle2">
                 {comment.user.username}
               </Typography>
@@ -374,10 +423,24 @@ const ForumDetail: React.FC = () => {
               </Box>
             ) : (
               <>
-                <Typography variant="body2" paragraph>
+                <Typography 
+                  variant="body2" 
+                  paragraph
+                  sx={{ 
+                    wordBreak: 'break-word',
+                    whiteSpace: 'pre-wrap'
+                  }}
+                >
                   {comment.content}
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    flexWrap: 'wrap',
+                    gap: { xs: 1, sm: 2 }, 
+                    alignItems: 'center' 
+                  }}
+                >
                   <Button
                     startIcon={<ThumbUp />}
                     size="small"

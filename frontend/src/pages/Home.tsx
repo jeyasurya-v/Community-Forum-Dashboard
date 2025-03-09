@@ -126,12 +126,34 @@ const Home = () => {
 
   const handleLike = async (forumId: number) => {
     try {
-      const response = await forumAPI.like(forumId);
+      // Find the forum to update
+      const forumToUpdate = forums.find(f => f.id === forumId);
+      if (!forumToUpdate) return;
+
+      // Optimistically update UI
+      dispatch(setForums(forums.map(forum => 
+        forum.id === forumId 
+          ? { 
+              ...forum, 
+              liked: !forum.liked, 
+              likes: forum.liked ? forum.likes - 1 : forum.likes + 1 
+            }
+          : forum
+      )));
+
+      // Make API call
+      await forumAPI.like(forumId);
+
+      // Update the forum data to ensure consistency
+      const response = await forumAPI.getById(forumId);
       dispatch(setForums(forums.map(forum => 
         forum.id === forumId ? response.data : forum
       )));
     } catch (err) {
       console.error('Error toggling like:', err);
+      // Revert on error by fetching all forums
+      const response = await forumAPI.getAll();
+      dispatch(setForums(response.data));
     }
   };
 
@@ -155,9 +177,17 @@ const Home = () => {
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
+    <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3, md: 4 } }}>
+      <Box sx={{ py: { xs: 2, sm: 3, md: 4 } }}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          gutterBottom 
+          align="center"
+          sx={{ 
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+          }}
+        >
           Community Forums
         </Typography>
         
@@ -167,7 +197,7 @@ const Home = () => {
           placeholder="Search forums..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ mb: 4 }}
+          sx={{ mb: { xs: 2, sm: 3, md: 4 } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -177,16 +207,16 @@ const Home = () => {
           }}
         />
 
-        <Grid container spacing={3} justifyContent="center">
+        <Grid container spacing={{ xs: 2, sm: 3 }} justifyContent="center">
           {loading ? (
             Array.from(new Array(3)).map((_, index) => (
-              <Grid item xs={12} md={8} key={index}>
+              <Grid item xs={12} sm={10} md={8} key={index}>
                 <LoadingCard />
               </Grid>
             ))
           ) : (
             paginatedForums.map((forum) => (
-              <Grid item xs={12} md={8} key={forum.id}>
+              <Grid item xs={12} sm={10} md={8} key={forum.id}>
                 <ForumCard forum={forum} onLike={handleLike} />
               </Grid>
             ))
@@ -194,7 +224,15 @@ const Home = () => {
         </Grid>
 
         {!loading && filteredForums.length > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mt: { xs: 2, sm: 3, md: 4 },
+            '& .MuiPagination-ul': {
+              flexWrap: 'wrap',
+              justifyContent: 'center'
+            }
+          }}>
             <Pagination
               count={totalPages}
               page={page}

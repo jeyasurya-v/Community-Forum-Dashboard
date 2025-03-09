@@ -41,7 +41,7 @@ A modern, full-stack forum application built with React, TypeScript, and Node.js
 - **Node.js** with TypeScript
 - **Express.js** framework
 - **TypeORM** for database management
-- **PostgreSQL** database
+- **MySQL** database
 - **JWT** for authentication
 
 ## Core Features
@@ -69,7 +69,7 @@ A modern, full-stack forum application built with React, TypeScript, and Node.js
 ### Prerequisites
 - Node.js 14+
 - npm or yarn
-- PostgreSQL database
+- MySQL database
 
 ### Backend Setup
 1. Navigate to backend directory:
